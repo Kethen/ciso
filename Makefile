@@ -17,4 +17,4 @@ install :
 	$(INSTALL) -m 755 ciso $(USRBINDIR)/ciso
 
 clean:
-	rm -rf *.o
+	rm -rf *.o ciso

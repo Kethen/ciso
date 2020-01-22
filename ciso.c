@@ -425,6 +425,8 @@ int main(int argc, char *argv[])
 	int result;
 
 	fprintf(stderr, "Compressed ISO9660 converter Ver.1.01 by BOOSTER\n");
+	fprintf(stderr, "Hello :3\n");
+	fprintf(stderr, "CSO header is of size %u\n", sizeof(CISO_H));
 
 	if (argc != 4)
 	{

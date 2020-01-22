@@ -35,7 +35,7 @@ typedef struct ciso_header{
 	uint32_t block_size;
 	unsigned char ver;
 	unsigned char align;
-	unsigned rsv_06[2];
+	unsigned char rsv_06[2];
 }__attribute__((packed)) CISO_H;
 
 #if 0
