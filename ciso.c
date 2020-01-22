@@ -22,6 +22,7 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <zlib.h>               /* /usr(/local)/include/zlib.h */
 #include <zconf.h>
 
@@ -31,8 +32,8 @@ const char *fname_in,*fname_out;
 FILE *fin,*fout;
 z_stream z;
 
-unsigned int *index_buf = NULL;
-unsigned int *crc_buf = NULL;
+uint32_t *index_buf = NULL;
+uint32_t *crc_buf = NULL;
 unsigned char *block_buf1 = NULL;
 unsigned char *block_buf2 = NULL;
 
@@ -43,9 +44,9 @@ unsigned char *block_buf2 = NULL;
 CISO_H ciso;
 int ciso_total_block;
 
-unsigned long long check_file_size(FILE *fp)
+int64_t check_file_size(FILE *fp)
 {
-	unsigned long long pos;
+	int64_t pos;
 
 	if( fseek(fp,0,SEEK_END) < 0)
 		return -1;
@@ -80,9 +81,9 @@ unsigned long long check_file_size(FILE *fp)
 ****************************************************************************/
 int decomp_ciso(void)
 {
-	unsigned long long file_size;
-	unsigned int index , index2;
-	unsigned long long read_pos , read_size;
+	int64_t file_size;
+	uint32_t index , index2;
+	uint32_t read_pos , read_size;
 	int total_sectors;
 	int index_size;
 	int block;
@@ -93,10 +94,17 @@ int decomp_ciso(void)
 	int percent_cnt;
 	int plain;
 
+	// check file size
+	file_size = check_file_size(fin);
 	/* read header */
-	if( fread(&ciso, 1, sizeof(ciso), fin) != sizeof(ciso) )
+	if(file_size == -1 || fread(&ciso, 1, sizeof(ciso), fin) != sizeof(ciso) )
 	{
 		printf("file read error\n");
+		return 1;
+	}
+
+	if(file_size > 0x7FFFFFFF){
+		printf("unsupported cso with file size larger than 2147483647 bytes with 31bit indexing\n");
 		return 1;
 	}
 
@@ -113,11 +121,11 @@ int decomp_ciso(void)
 		printf("ciso file format error\n");
 		return 1;
 	}
-	 
+
 	ciso_total_block = ciso.total_bytes / ciso.block_size;
 
 	/* allocate index block */
-	index_size = (ciso_total_block + 1 ) * sizeof(unsigned long);
+	index_size = (ciso_total_block + 1 ) * sizeof(uint32_t);
 	index_buf  = malloc(index_size);
 	block_buf1 = malloc(ciso.block_size);
 	block_buf2 = malloc(ciso.block_size*2);
@@ -237,8 +245,8 @@ int decomp_ciso(void)
 ****************************************************************************/
 int comp_ciso(int level)
 {
-	unsigned long long file_size;
-	unsigned long long write_pos;
+	int64_t file_size;
+	int64_t write_pos;
 	int total_sectors;
 	int index_size;
 	int block;
@@ -257,11 +265,16 @@ int comp_ciso(int level)
 	}
 
 	/* allocate index block */
-	index_size = (ciso_total_block + 1 ) * sizeof(unsigned long);
+	index_size = (ciso_total_block + 1 ) * sizeof(uint32_t);
+	// worst case file size
+	if(file_size + index_size + sizeof(CISO_H) > 0x7FFFFFFF){
+		printf("Warning: resulting cso file might be too big for 31bit indexing\n");
+	}
 	index_buf  = malloc(index_size);
 	crc_buf    = malloc(index_size);
 	block_buf1 = malloc(ciso.block_size);
 	block_buf2 = malloc(ciso.block_size*2);
+
 
 	if( !index_buf || !crc_buf || !block_buf1 || !block_buf2 )
 	{
@@ -331,6 +344,11 @@ int comp_ciso(int level)
 		/* mark offset index */
 		index_buf[block] = write_pos>>(ciso.align);
 
+		if(write_pos >> (ciso.align) >= 0x7FFFFFFF){
+			printf("the file is too big for 31bit indexing cso, aborting \n");
+			return 1;
+		}
+
 		/* read buffer */
 		z.next_out  = block_buf2;
 		z.avail_out = ciso.block_size*2;
@@ -383,6 +401,11 @@ int comp_ciso(int level)
 
 	/* last position (total size)*/
 	index_buf[block] = write_pos>>(ciso.align);
+
+	if(write_pos >> (ciso.align) >= 0x7FFFFFFF){
+		printf("the file is too big for 31bit indexing cso, aborting \n");
+		return 1;
+	}
 
 	/* write header & index block */
 	fseek(fout,sizeof(ciso),SEEK_SET);

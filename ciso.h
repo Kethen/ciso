@@ -25,6 +25,21 @@
 /*
 	complessed ISO(9660) header format
 */
+#include <stdint.h>
+
+// more portable header with stdint.h
+typedef struct ciso_header{
+	unsigned char magic[4];
+	uint32_t header_size;
+	uint64_t total_bytes;
+	uint32_t block_size;
+	unsigned char ver;
+	unsigned char align;
+	unsigned rsv_06[2];
+}__attribute__((packed)) CISO_H;
+
+#if 0
+
 typedef struct ciso_header
 {
 	unsigned char magic[4];			/* +00 : 'C','I','S','O'                 */
@@ -34,7 +49,6 @@ typedef struct ciso_header
 	unsigned char ver;				/* +14 : version 01                      */
 	unsigned char align;			/* +15 : align of index value            */
 	unsigned char rsv_06[2];		/* +16 : reserved                        */
-#if 0
 // INDEX BLOCK
 	unsigned int index[0];			/* +18 : block[0] index                  */
 	unsigned int index[1];			/* +1C : block[1] index                  */
@@ -44,8 +58,8 @@ typedef struct ciso_header
 	unsigned int index[last+1];		/* +?? : end of last data point          */
 // DATA BLOCK
 	unsigned char data[];			/* +?? : compressed or plain sector data */
-#endif
 }CISO_H;
+#endif
 
 /*
 note:
